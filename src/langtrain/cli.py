@@ -1,5 +1,6 @@
 """
-langtrain Python SDK — no CLI entry point.
+langtrain Python SDK — the training CLI is the npm package; this package ships
+`langtrain-observe` (langtrain.observe.cli) for inspecting traces.
 
 Authentication is handled by langtrain-sdk (npm):
   npx langtrain login        → browser OAuth → saves ~/.langtrain/credentials.json

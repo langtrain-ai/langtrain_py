@@ -1,7 +1,7 @@
 """
 An in-process stand-in for the Langtrain API server, with only the routes the
 real server serves to API keys (langtrain-server: app/api/v1/finetune.py,
-finetune_export.py, files.py, legacy_auth.py). Any other path is a 404, so a
+finetune_export.py, files.py, legacy_auth.py, observe.py). Any other path is a 404, so a
 client that calls a route the server doesn't have fails the test.
 
 Keep this in step with the server when routes change.
@@ -25,6 +25,8 @@ class FakeAPI:
     def __init__(self):
         self.calls = []        # (method, path, query, json body or None, api key)
         self.unknown = []      # requests to routes the server doesn't have
+        self.plan = "free"      # what the validate route reports
+        self.spans = []        # spans received by /observe/traces
         api = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -53,7 +55,7 @@ class FakeAPI:
                 if route == ("POST", "/api/v1/auth/api-keys/validate"):
                     if query.get("api_key") != API_KEY:
                         return self._send(401, {"detail": "Invalid API key"})
-                    return self._send(200, {"valid": True, "organization_id": "org-1", "plan": "free"})
+                    return self._send(200, {"valid": True, "organization_id": "org-1", "plan": api.plan, "features": {}})
                 if key != API_KEY:
                     return self._send(401, {"detail": "Not authenticated"})
                 if route == ("POST", "/api/v1/training/jobs"):
@@ -77,6 +79,16 @@ class FakeAPI:
                     return self._send(200, {"gpu_tiers": [{"id": "t4", "label": "T4 16GB", "vram": 16, "tflops": 65, "price_hr": 0.35, "recommended_for": "Small models"}]})
                 if route == ("GET", "/api/v1/training/training-methods"):
                     return self._send(200, [{"id": "qlora"}])
+                if route in (("POST", "/api/v1/observe/traces"), ("POST", "/api/v1/observe/feedback")):
+                    if api.plan not in ("pro", "enterprise"):
+                        return self._send(402, {"detail": "Cloud traces need a Pro plan"})
+                    if route[1].endswith("traces"):
+                        spans = (body or {}).get("spans")
+                        if not isinstance(spans, list) or not spans:
+                            return self._send(422, {"detail": "spans must be a non-empty list"})
+                        api.spans.extend(spans)
+                        return self._send(202, {"accepted": len(spans)})
+                    return self._send(201, {"ok": True})
                 if route == ("POST", "/api/v1/files"):
                     # The real route needs a dashboard session, not an API key.
                     return self._send(401, {"detail": "Not authenticated"})

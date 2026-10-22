@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "langtrain-ai"
-version = "1.1.0"
+version = "1.2.0"
 description = "The unified Python SDK for training, aligning, and deploying LLMs — text and vision."
 authors = [
     { name = "Pritesh Raj", email = "priteshraj41@gmail.com" }
@@ -19,7 +19,8 @@ requires-python = ">=3.8"
 keywords = [
     "llm", "fine-tuning", "LoRA", "QLoRA", "AdaptiveRank", "RLHF", "DPO", "GRPO", "PPO",
     "vision-language-model", "VLM", "dataset-intelligence", "TurboQuant",
-    "langtrain", "langtune", "langvision", "transformers", "peft", "mlops"
+    "langtrain", "langtune", "langvision", "transformers", "peft", "mlops",
+    "observability", "tracing", "llm-evaluation", "opentelemetry", "agents"
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -78,6 +79,9 @@ all = [
     "langtrain-ai[train,vision,kernels]",
 ]
 
+
+[project.scripts]
+langtrain-observe = "langtrain.observe.cli:main"
 
 [project.urls]
 Homepage = "https://langtrain.xyz"
