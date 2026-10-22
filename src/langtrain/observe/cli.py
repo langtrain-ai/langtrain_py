@@ -192,7 +192,75 @@ def build_parser() -> argparse.ArgumentParser:
     ot.add_argument("endpoint", nargs="?", default="http://localhost:4318/v1/traces")
     ot.add_argument("--dry-run", action="store_true", help="print the OTLP payload instead of sending")
     add("prompts", cmd_prompts, "saved prompt versions", since=None)
+
+    te = add("test", cmd_test, "run a test suite against a model (Ollama by default)", since=None)
+    te.add_argument("suite", choices=["benchmark", "eval", "needle", "consistency", "tools", "leakage", "pii", "redteam", "load", "arena"],
+                    help="redteam, load and arena need Pro")
+    te.add_argument("--model", required=True, help="model name, e.g. llama3.1")
+    te.add_argument("--base-url", default=None, help="OpenAI-compatible URL (default http://localhost:11434/v1, Ollama)")
+    te.add_argument("--api-key", default=None, help="key for the endpoint, if it needs one (or LANGTRAIN_TARGET_KEY)")
+    te.add_argument("--category", action="append", help="eval: only these categories (repeatable)")
+    te.add_argument("--prompt", default="What is the capital of Australia?", help="consistency: the prompt to repeat")
+    te.add_argument("--runs", type=int, default=5, help="consistency: how many times")
+    te.add_argument("--secret", default="CANARY-7Q2X-91LM", help="leakage: the secret to plant")
+    te.add_argument("--concurrency", type=int, default=4, help="load: requests in flight")
+    te.add_argument("--duration", type=float, default=15, help="load: seconds")
+    te.add_argument("--against", action="append", default=[], help="arena: other models (repeatable)")
+    te.add_argument("--judge", default=None, help="arena: a model to judge; without it you vote in the terminal")
+    te.add_argument("--prompt-list", action="append", help="arena: prompts to compare on (repeatable)")
+    te.add_argument("-v", "--verbose", action="store_true", help="print every case")
     return p
+
+
+def _target(args: argparse.Namespace, model: Optional[str] = None):
+    from .testing import Target
+    return Target(model or args.model, base_url=args.base_url, api_key=args.api_key)
+
+
+def cmd_test(args: argparse.Namespace) -> None:
+    from . import testing as t
+
+    suite = args.suite
+    target = _target(args)
+    console.print(f"[dim]Running {suite} against {target}…[/dim]")
+    if suite == "benchmark":
+        report = t.benchmark(target)
+    elif suite == "eval":
+        report = t.eval_suite(target, args.category or None)
+    elif suite == "needle":
+        report = t.needle(target)
+    elif suite == "consistency":
+        report = t.consistency(target, args.prompt, runs=args.runs)
+    elif suite == "tools":
+        report = t.tool_calling(target)
+    elif suite == "leakage":
+        report = t.leakage(target, secret=args.secret)
+    elif suite == "pii":
+        report = t.pii_leakage(target)
+    elif suite == "redteam":
+        report = t.red_team(target)
+    elif suite == "load":
+        report = t.load_test(target, concurrency=args.concurrency, duration_s=args.duration)
+    elif suite == "arena":
+        targets = [target] + [_target(args, m) for m in args.against]
+        judge = t.llm_judge(_target(args, args.judge)) if args.judge else _human_judge
+        report = t.arena(targets, args.prompt_list or ["Explain what a context window is in two sentences."], judge)
+    else:  # pragma: no cover - argparse restricts choices
+        raise SystemExit(f"unknown suite {suite}")
+    rows = report.pop("rows", None)
+    _print_json(report)
+    if rows and args.verbose:
+        _print_json(rows)
+
+
+def _human_judge(prompt: str, one: str, two: str) -> str:
+    console.rule(prompt[:80])
+    console.print(f"[bold]1[/bold]\n{one}\n")
+    console.print(f"[bold]2[/bold]\n{two}\n")
+    while True:
+        choice = console.input("Better answer? [1/2/tie] ").strip().lower()
+        if choice in ("1", "2", "tie"):
+            return choice
 
 
 def _drift(baseline_hours: float, current_hours: float) -> Any:

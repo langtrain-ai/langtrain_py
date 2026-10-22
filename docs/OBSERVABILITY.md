@@ -63,21 +63,21 @@ Status: **available** ships now; **cloud** is served by the Langtrain API;
 | 1 | LLM Observability | Free | available | `observe.span(kind="llm")`, `wrap_openai` |
 | 2 | Agent Observability | Free | available | `@observe.observe(kind="agent")` |
 | 3 | Token Usage & Cost Analytics | Free | available | `observe.summary()`, `set_price()` · `stats` |
-| 4 | LLM Evaluation & Benchmarking | Free | available | `observe.evaluate()`, `evals.*` scorers |
+| 4 | LLM Evaluation & Benchmarking | Free | available | `observe.evaluate()`, `testing.eval_suite/needle/consistency/benchmark` · `test eval` |
 | 5 | Prompt Management & Versioning | Free | available | `prompts.save/render/get` · `prompts` |
 | 6 | Model Performance Monitoring | Pro | available | `observe.models()` · `models` |
 | 7 | Latency & Throughput Monitoring | Free | available | `observe.summary()` · `stats` |
 | 8 | Error Tracking & Debugging | Free | available | `observe.errors()` · `errors`, `show` |
 | 9 | Agent Workflow Tracing | Free | available | nested spans · `show <trace>` |
-| 10 | Tool Call Monitoring | Free | available | `kind="tool"` · `tools` |
+| 10 | Tool Call Monitoring | Free | available | `kind="tool"` · `tools`; `testing.tool_calling()` |
 | 11 | Hallucination Detection | Pro | available | `observe.rag()`, `evals.grounded()` · `rag` |
 | 12 | RAG Observability | Pro | available | `kind="retrieval"` spans · `rag` |
-| 13 | AI Safety & Guardrails | Pro | cloud | existing `/api/v1/guardrails` |
+| 13 | AI Safety & Guardrails | Pro | available | `testing.red_team()` · `test redteam`; rules: existing `/api/v1/guardrails` |
 | 14 | Fine-Tuning Observability | Pro | planned | |
 | 15 | Training Experiment Tracking | Pro | cloud | existing `/api/v1/experiments` |
 | 16 | Dataset Quality & Validation | Free | available | `DatasetIntelligence.analyze()` |
 | 17 | GPU & Infrastructure Monitoring | Pro | planned | |
-| 18 | Model Comparison & Leaderboards | Pro | available | `observe.compare_models()`, `observe.models()` |
+| 18 | Model Comparison & Leaderboards | Pro | available | `observe.compare_models()`, `testing.arena()` (Elo) · `test arena` |
 | 19 | Model Routing & Optimization | Pro | planned | |
 | 20 | Cost per Successful Task | Pro | available | `observe.cost_per_success()` · `cost` |
 | 21 | Production Feedback Collection | Pro | available | `observe.feedback()` |
@@ -89,9 +89,9 @@ Status: **available** ships now; **cloud** is served by the Langtrain API;
 | 27 | Deployment Monitoring | Pro | planned | |
 | 28 | Model Versioning & Rollbacks | Pro | planned | |
 | 29 | Multimodal Observability | Pro | planned | |
-| 30 | Synthetic Testing & Load Testing | Pro | planned | |
-| 31 | Privacy & PII Detection | Free | available | on by default (`redact_pii=True`) |
-| 32 | Security & Prompt Injection Detection | Free | available | on by default · flagged in `show` |
+| 30 | Synthetic Testing & Load Testing | Pro | available | `testing.load_test()` + built-in suites · `test load` |
+| 31 | Privacy & PII Detection | Free | available | on by default (`redact_pii=True`); `testing.pii_leakage()` |
+| 32 | Security & Prompt Injection Detection | Free | available | on by default · flagged in `show`; `testing.leakage()` |
 | 33 | Human-in-the-Loop Evaluation | Pro | planned | |
 | 34 | OpenTelemetry Integration | Free | available | `init(otlp_endpoint=...)` · `export-otlp` |
 | 35 | API Usage & Rate Limit Monitoring | Pro | available | `observe.rate_limits()` · `rate-limits` |
@@ -102,7 +102,7 @@ Status: **available** ships now; **cloud** is served by the Langtrain API;
 | 40 | Continuous Evaluation & Improvement Loops | Pro | planned | |
 | + | Cloud Trace Storage & Dashboards | Pro | cloud | `init(cloud=True)` · `/api/v1/observe/traces` |
 
-Today: 29 available, 3 served by the API, 9 planned.
+Today: 31 available, 2 served by the API, 8 planned.
 
 ### Honest limits of what ships now
 
@@ -119,6 +119,40 @@ Today: 29 available, 3 served by the API, 9 planned.
   No vendor prices are built in, because stale defaults would report wrong costs.
 - **Anomaly alerts** are detected on demand; sending alerts (email, Slack,
   webhook) needs the planned scheduler.
+
+## Testing models (`langtrain.observe.testing`)
+
+Test suites for any OpenAI-compatible model: Ollama on localhost by default,
+or vLLM, Langtrain-served models, OpenAI, OpenRouter (`Target(model,
+base_url=..., api_key=...)`), or a plain function (`FunctionTarget`). Every
+call is traced, and each report is saved in `~/.langtrain/tests`.
+
+```bash
+langtrain-observe test eval --model llama3.1           # accuracy by category
+langtrain-observe test benchmark --model llama3.1      # TTFT and tokens/sec
+langtrain-observe test load --model llama3.1 --concurrency 8 --duration 30   # Pro
+langtrain-observe test arena --model llama3.1 --against qwen3 --judge gpt-oss  # Pro
+```
+
+| Suite | What it measures | Plan |
+|---|---|---|
+| `benchmark` | time to first token, tokens/sec, latency for short/medium/long prompts | Free |
+| `eval_suite` | accuracy on 46 questions: math, knowledge, coding, instructions, factuality traps | Free |
+| `needle` | long-context retrieval across context lengths and depths | Free |
+| `consistency` | agreement across repeated runs of one prompt | Free |
+| `tool_calling` | right function, right arguments | Free |
+| `leakage` | a planted secret against 10 exfiltration techniques (incl. base64) | Free |
+| `pii_leakage` | a fake customer record (PAN, Aadhaar, account, ...) against the same attacks | Free |
+| `red_team` | refusal rate on 24 prompts across 8 harm categories | Pro |
+| `load_test` | throughput, latency percentiles and errors under concurrency | Pro |
+| `arena` | blinded pairwise comparison with Elo; a person or a judge model votes | Pro |
+
+These come from **langtrain_harness**, the earlier Next.js testing app for
+Ollama. Ported with their datasets; the harness answer grader marked answers
+ending in a full stop ("408.") as wrong, which is fixed here. Not ported yet,
+because they are UI tools for the planned dashboard: the attention visualizer,
+the hardware monitor, and the vision, embeddings, entity-matching and
+capability testers.
 
 ## API (`/api/v1/observe`)
 

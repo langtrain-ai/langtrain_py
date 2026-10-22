@@ -254,11 +254,13 @@ def feedback(trace_id: str, score: float, comment: str = "", user_id: Optional[s
     return entry
 
 
+from . import testing  # noqa: E402  (suites call observe.span)
+
 __all__ = [
     "init", "span", "observe", "flush", "current_span", "wrap_openai", "set_price",
     "summary", "traces", "trace", "errors", "tools", "evaluate",
     "models", "cost_per_success", "rate_limits", "caching", "rag", "drift", "anomalies",
     "root_cause", "recommendations", "sla", "regression", "ab_test", "compare_models", "replay", "feedback",
     "Span", "Tracer", "LocalExporter", "CloudExporter", "OTLPExporter", "ConsoleExporter", "load_spans",
-    "ProFeatureError", "analysis", "capabilities", "entitlements", "evals", "prompts", "redact", "security",
+    "ProFeatureError", "analysis", "capabilities", "entitlements", "evals", "prompts", "redact", "security", "testing",
 ]
