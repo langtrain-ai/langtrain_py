@@ -30,6 +30,7 @@ pip install langtrain-ai[all]         # everything
 | `AdaptiveRankTrainer` | Novel algorithm: SpectralLoRA + dynamic rank + TurboQuant |
 | `DatasetIntelligence` | Drop any file → auto model + training config |
 | `LangtrainClient` | Cloud API: fine-tune, deploy, chat, GPU, models |
+| `langtrain.observe` | Tracing, evals and monitoring for LLM apps and agents |
 | `lt` CLI | `lt login`, `lt fine-tune`, `lt analyze`, `lt gpu` |
 
 ## Quick start
@@ -105,6 +106,36 @@ lt fine-tune llama-3.1-8b data.jsonl  # launch training
 lt jobs                               # list jobs
 lt models                             # list models
 ```
+
+### Observability
+
+Trace every model call, tool call and agent step; see tokens, cost, latency and
+errors; evaluate outputs; catch PII and prompt injection. Capture is free and
+local; analysis (root cause, drift, hallucination checks, recommendations) and
+cloud dashboards are Pro.
+
+```python
+from langtrain import observe
+
+observe.init(project="support-bot")         # traces in ~/.langtrain/traces
+client = observe.wrap_openai(OpenAI())      # any OpenAI-compatible client
+
+@observe.observe(kind="agent")
+def answer(question):
+    with observe.span("search", kind="retrieval") as s:
+        s.set(documents=search(question))
+    return client.chat.completions.create(model="...", messages=[...])
+
+observe.summary()                           # tokens, cost, latency, errors
+```
+
+```bash
+langtrain-observe stats                     # last 24h
+langtrain-observe show <trace-id>           # one trace as a tree
+langtrain-observe features                  # what your plan includes
+```
+
+All 40 capabilities, their plans and status: [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md).
 
 ## Why Langtrain vs Unsloth?
 

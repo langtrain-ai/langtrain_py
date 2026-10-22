@@ -276,7 +276,7 @@ class LangtrainClient:
         return {
             "X-API-Key": self.api_key,
             "Content-Type": "application/json",
-            "User-Agent": "langtrain-py/1.1.0",
+            "User-Agent": "langtrain-py/1.2.0",
         }
 
     def _get(self, path: str, params: Optional[Dict] = None) -> Any:
@@ -308,7 +308,7 @@ class LangtrainClient:
         _raise(resp)
 
     def _upload(self, path: str, file, filename: str, **fields) -> Any:
-        headers = {"X-API-Key": self.api_key, "User-Agent": "langtrain-py/1.1.0"}
+        headers = {"X-API-Key": self.api_key, "User-Agent": "langtrain-py/1.2.0"}
         files = {"file": (filename, file)}
         resp = self._session().post(
             f"{self.base_url}{path}",

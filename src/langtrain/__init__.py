@@ -45,7 +45,7 @@ from __future__ import annotations
 import os
 import sys
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 __author__ = "Pritesh Raj"
 __email__ = "priteshraj41@gmail.com"
 
@@ -68,6 +68,9 @@ from .intelligence import DatasetIntelligence, IntelligenceReport
 # ── Cloud client ─────────────────────────────────────────────────────────────
 from .client import LangtrainClient
 
+# ── Observability: tracing, evals, monitoring ────────────────────────────────
+from . import observe
+
 # ── Convenience alias (mirrors Unsloth naming) ────────────────────────────────
 LoRATrainer = TextLoRATrainer
 
@@ -87,6 +90,8 @@ __all__ = [
     "IntelligenceReport",
     # Cloud
     "LangtrainClient",
+    # Observability
+    "observe",
     # Aliases
     "LoRATrainer",
     # Meta
